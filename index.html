@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STARS•PMR Casino Mini App</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg-color: #0f0f0f;
+            --card-bg: #1a1a1a;
+            --border-color: #ffffff;
+            --text-color: #ffffff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            font-size: 20px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .balance-box {
+            background: #000;
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .section-title {
+            font-size: 13px;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #aaa;
+        }
+
+        input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            color: #fff;
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .buttons-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        button.choice-btn {
+            background: #000;
+            color: #fff;
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: 0.2s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        button.choice-btn.active {
+            background: #fff;
+            color: #000;
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 14px;
+            background: #fff;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+
+        .action-btn:disabled {
+            background: #333;
+            color: #777;
+            cursor: not-allowed;
+        }
+
+        .topup-btn {
+            background: transparent;
+            color: #fff;
+            border: 1px dashed var(--border-color);
+        }
+
+        .result-box {
+            margin-top: 15px;
+            padding: 12px;
+            background: #000;
+            border: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 14px;
+            border-radius: 8px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>STARS•PMR Casino</h2>
+
+        <div class="balance-box">
+            > Баланс мой: <span id="balance">100</span> монет
+        </div>
+
+        <div class="section-title">1. Сумма ставки:</div>
+        <input type="number" id="bet-input" value="10" min="1">
+
+        <div class="section-title">2. Выберите исход [x2]:</div>
+        <div class="buttons-grid">
+            <button class="choice-btn" onclick="selectVariant('777', this)">
+                <span>🎰 Три семёрки (777)</span> <span>[x2]</span>
+            </button>
+            <button class="choice-btn" onclick="selectVariant('fruits', this)">
+                <span>🍋 Три лимона / Фрукты</span> <span>[x2]</span>
+            </button>
+            <button class="choice-btn" onclick="selectVariant('BAR', this)">
+                <span>⬛ BAR</span> <span>[x2]</span>
+            </button>
+        </div>
+
+        <button id="spin-btn" class="action-btn" onclick="startSpin()" disabled>Крутить барабан</button>
+        <button class="action-btn topup-btn" onclick="topUpBalance()">💳 Пополнить баланс</button>
+
+        <div id="result-box" class="result-box"></div>
+    </div>
+
+    <script>
+        let tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let currentBalance = 100;
+        let selectedVariant = null;
+
+        function selectVariant(variant, element) {
+            document.querySelectorAll('.choice-btn').forEach(btn => btn.classList.remove('active'));
+            element.classList.add('active');
+            selectedVariant = variant;
+            checkReady();
+        }
+
+        document.getElementById('bet-input').addEventListener('input', checkReady);
+
+        function checkReady() {
+            let bet = parseInt(document.getElementById('bet-input').value) || 0;
+            let spinBtn = document.getElementById('spin-btn');
+            if (selectedVariant && bet > 0 && bet <= currentBalance) {
+                spinBtn.disabled = false;
+            } else {
+                spinBtn.disabled = true;
+            }
+        }
+
+        function startSpin() {
+            let bet = parseInt(document.getElementById('bet-input').value);
+            if (bet > currentBalance) {
+                alert("Недостаточно средств!");
+                return;
+            }
+
+            currentBalance -= bet;
+            updateBalanceUI();
+
+            let spinBtn = document.getElementById('spin-btn');
+            spinBtn.disabled = true;
+
+            let resultBox = document.getElementById('result-box');
+            resultBox.style.display = 'block';
+            resultBox.innerHTML = "Крутим барабан... 🎰";
+
+            setTimeout(() => {
+                let outcomes = ['777', 'fruits', 'BAR', 'lose', 'lose'];
+                let roll = outcomes[Math.floor(Math.random() * outcomes.length)];
+
+                if (roll === selectedVariant) {
+                    let win = bet * 2;
+                    currentBalance += win;
+                    resultBox.innerHTML = `🎉 Победа! Вы угадали!<br>Выигрыш: <b>${win}</b> монет (х2)`;
+                } else {
+                    resultBox.innerHTML = `😢 Проигрыш. Комбинация не совпала.<br>Потеряно: ${bet} монет.`;
+                }
+
+                updateBalanceUI();
+                checkReady();
+            }, 2000);
+        }
+
+        function topUpBalance() {
+            let addAmount = prompt("Введите сумму для пополнения баланса:", "50");
+            if (addAmount && !isNaN(addAmount) && parseInt(addAmount) > 0) {
+                currentBalance += parseInt(addAmount);
+                updateBalanceUI();
+                checkReady();
+                alert(`Баланс успешно пополнен на ${addAmount} монет!`);
+            }
+        }
+
+        updateBalanceUI();
+    </script>
+</body>
+</html>
